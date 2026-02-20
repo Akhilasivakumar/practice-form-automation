@@ -43,9 +43,11 @@ jobs:
           echo "TIMEOUT=${{ secrets.TIMEOUT }}" >> .env
           echo "BROWSER=${{ secrets.BROWSER }}" >> .env
           echo "HEADLESS=${{ secrets.HEADLESS }}" >> .env
-      # 6. Run the Cucumber tests
+      # 6. Run the Cucumber tests (always headless in CI — no display server available)
       - name: Run Cucumber tests
         run: npm test
+        env:
+          HEADLESS: 'true'
 
       # 7. Upload the HTML + JSON test reports as artifacts
       #    You can download them from the GitHub Actions run page after the job completes
