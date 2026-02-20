@@ -32,8 +32,4 @@ Then('I should see success message', async function () {
 });
 
 
-// ===============================
-// Invalid Scenario
-// ===============================
-
 
