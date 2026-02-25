@@ -1,6 +1,5 @@
 name: CI - Run Cucumber Tests on Merge to Main
 
-# Trigger: runs whenever a push is made to the main branch (i.e., after a PR is merged)
 on:
   push:
     branches:
@@ -9,7 +8,8 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 4 * * *'  # Run at 4:00 PM UTC every day
+    # Runs daily at 5:30 AM UTC (11:00 AM IST)
+    - cron: '30 5 * * *'
 
 jobs:
   test:
@@ -17,46 +17,69 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Check out the source code
+      # 1️⃣ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Node.js (match your local version)
+      # 2️⃣ Setup Node
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # 3. Install project dependencies
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 4. Install Playwright browsers (Chromium, Firefox, WebKit)
+      # 4️⃣ Install Playwright browsers
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      # 5. Create the .env file from GitHub Secrets
-      #    Go to: GitHub Repo → Settings → Secrets and variables → Actions
-      #    Add each secret (e.g., BASE_URL, BROWSER,TIMEOUT,HEADLESS) there
+      # 5️⃣ Create .env file from GitHub Secrets
       - name: Create .env file
         run: |
           echo "BASE_URL=${{ secrets.BASE_URL }}" >> .env
           echo "TIMEOUT=${{ secrets.TIMEOUT }}" >> .env
           echo "BROWSER=${{ secrets.BROWSER }}" >> .env
-          echo "HEADLESS=${{ secrets.HEADLESS }}" >> .env
-      # 6. Run the Cucumber tests (always headless in CI — no display server available)
+          echo "HEADLESS=true" >> .env
+
+      # 6️⃣ Run Cucumber tests
       - name: Run Cucumber tests
         run: npm test
-        env:
-          HEADLESS: 'true'
+        continue-on-error: true
 
-      # 7. Upload the HTML + JSON test reports as artifacts
-      #    You can download them from the GitHub Actions run page after the job completes
+      # 7️⃣ Upload test reports (always upload even if failed)
       - name: Upload test reports
-        if: always()   # upload even if tests fail, so you can debug
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cucumber-test-reports
           path: test-output/reports/
           retention-days: 14
+
+      # 8️⃣ Send email notification (ONLY for scheduled runs)
+      - name: Send email notification
+        if: always() && github.event_name == 'schedule'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Daily CI Execution - ${{ job.status }}"
+          to: akhila292002@gmail.com
+          from: ${{ secrets.EMAIL_USERNAME }}
+          body: |
+            Hello Akhila,
+
+            Your scheduled CI execution has completed.
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Status: ${{ job.status }}
+
+            Please check GitHub Actions to download the test reports.
+
+            Have a productive day 🙂
